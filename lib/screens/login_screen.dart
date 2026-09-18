@@ -11,9 +11,18 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   // variable para ocultar/mostrar la contraseña
   bool _obscure = true;
+  // variable para controlar el estado de la animación
+    StateMachineController? _controller;
+
   @override
   Widget build(BuildContext context) {
     // Obtenemos el tamaño de la pantalla
+    // 1.1 SMI: 
+    SMIBool? _isChecking;
+    SMIBool? _isHandsUp;
+    SMITrigger? _trigSuccess;
+    SMITrigger? _trigFail;
+
     final Size size = MediaQuery.of(context).size;
     return Scaffold(
       body: SafeArea(
@@ -24,12 +33,40 @@ class _LoginScreenState extends State<LoginScreen> {
               SizedBox(
                 width: size.width,
                 height: 200,
-                child: RiveAnimation.asset('assets/oso.riv',),
+                child: RiveAnimation.asset('assets/oso.riv', 
+                stateMachines: ['Login Machine'],
+
+                // 1.2 agregamos animacion
+                onInit: (artboard){
+                  _controller = StateMachineController.fromArtboard(artboard, 
+                  'Login Machine');
+
+                  // 1.3 Verificar que inció correctamente el controlador
+                  if(_controller == null) return;
+                  // agregamos el controlador al escenario
+                  artboard.addController(_controller!);
+                  // vinculamos variables
+                  _isChecking = _controller!.findSMI('isChecking');
+                  _isHandsUp = _controller!.findSMI('isHandsUp');
+                  _trigSuccess = _controller!.findSMI('trigSuccess');
+                  _trigFail = _controller!.findSMI('trigFail');
+                },),
               ),
               // sirve para separar espacio de alto
               SizedBox(height: 12),
               // Emai TextField
               TextField(
+                onChanged: (value){
+                  if (_isHandsUp != null){
+                    // no tapes los ojos al ver email
+                    _isHandsUp!.change(false);
+                  }
+
+                  // si isChecking es nulo
+                  if (_isChecking == null) return;
+                  // activamos el modo chismoso
+                  _isChecking!.change(true);
+                },
                 // mejoramos el tipo de teclado
                 keyboardType: TextInputType.emailAddress, 
                 decoration: InputDecoration(
@@ -43,6 +80,17 @@ class _LoginScreenState extends State<LoginScreen> {
                 SizedBox(height: 12),
               // Contraseña TextField 
               TextField(
+                onChanged: (value){
+                  if (_isHandsUp != null){
+                    // no tapes los ojos al ver email
+                    _isHandsUp!.change(false);
+                  }
+
+                  // si isChecking es nulo
+                  if (_isHandsUp == null) return;
+                  // activamos el modo chismoso
+                  _isHandsUp!.change(true);
+                },
                 obscureText: _obscure,
                 // para teclado de contraseña
                 decoration: InputDecoration(
