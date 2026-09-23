@@ -11,18 +11,40 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   // variable para ocultar/mostrar la contraseña
   bool _obscure = true;
-  // variable para controlar el estado de la animación
+  // 1.1 variable para controlar el estado de la animación
     StateMachineController? _controller;
-
-  @override
-  Widget build(BuildContext context) {
-    // Obtenemos el tamaño de la pantalla
-    // 1.1 SMI: 
+    // SMI: 
     SMIBool? _isChecking;
     SMIBool? _isHandsUp;
     SMITrigger? _trigSuccess;
     SMITrigger? _trigFail;
+    // 1.1 variables parapaara controlar el estado de la animación FocusNode
+    final _emailFocus = FocusNode();
+    final _passwordFocus = FocusNode();
 
+    // 2.2 Listener para el cosu (chismoso)
+    @override
+    void initState() {
+      super.initState();
+      _emailFocus.addListener(() {
+
+        if (_emailFocus.hasFocus){
+          // verificamos que no sea nulo
+          if (_isHandsUp != null){
+            // manos abajo al ver email
+            _isHandsUp?.change(false);
+          }
+        }
+      });
+      _passwordFocus.addListener(() {
+        // manos hacia arriba al ver contraseña
+        _isHandsUp?.change(_passwordFocus.hasFocus);
+      });
+    }
+
+  @override
+  Widget build(BuildContext context) {
+    // Obtenemos el tamaño de la pantalla
     final Size size = MediaQuery.of(context).size;
     return Scaffold(
       body: SafeArea(
@@ -56,10 +78,12 @@ class _LoginScreenState extends State<LoginScreen> {
               SizedBox(height: 12),
               // Emai TextField
               TextField(
+                // 2.3 asignar foco al campo de email
+                focusNode: _emailFocus,
                 onChanged: (value){
                   if (_isHandsUp != null){
                     // no tapes los ojos al ver email
-                    _isHandsUp!.change(false);
+                    // _isHandsUp!.change(false);
                   }
 
                   // si isChecking es nulo
@@ -80,10 +104,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 SizedBox(height: 12),
               // Contraseña TextField 
               TextField(
+                // 2.3 asignar foco al campo de contraseña
+                focusNode: _passwordFocus,
                 onChanged: (value){
                   if (_isHandsUp != null){
                     // no tapes los ojos al ver email
-                    _isHandsUp!.change(false);
+                    // _isHandsUp!.change(false);
                   }
 
                   // si isChecking es nulo
@@ -115,5 +141,12 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
       ),
     );
+  }
+  // 2.4 liberamos espacio de la memoria
+  @override
+  void dispose() {
+    _emailFocus.dispose();
+    _passwordFocus.dispose();
+    super.dispose();
   }
 }
