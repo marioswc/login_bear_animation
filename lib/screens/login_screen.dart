@@ -12,6 +12,9 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   // variable para ocultar/mostrar la contraseña
   bool _obscure = true;
+  // 5.1 variable para controlar el estado del checkbox y el estado de la animación
+  bool rememberMe = false;
+  bool isAnimating = false;
   // 1.1 variable para controlar el estado de la animación
     StateMachineController? _controller;
     // SMI: 
@@ -47,6 +50,16 @@ class _LoginScreenState extends State<LoginScreen> {
       return re.hasMatch(password);
     }
 
+    //5.3 función para escuchar el cambio de estado de la aniamción
+    void _onStateChange(String stateMachineName, String stateName){
+      // si el estado es idle, desactivamos la animación
+      if (stateName == 'idle'){
+        setState(() {
+          isAnimating = false;
+        });
+      }
+    }
+
     // 4.4 dar accion
     void _onLogin(){
       // 4.5 quitar espacios en blanco
@@ -69,6 +82,10 @@ class _LoginScreenState extends State<LoginScreen> {
       _isChecking?.change(false);
       _isHandsUp?.change(false);
       _numLook?.value = 50.0;
+      // 5.2 si el usuario presiona el boton de login, desactivamos el boton de login para evitar multiples clicks
+      setState(() {
+        isAnimating = true;
+      });
       // 4.9 activar trigger
       if (eError == null && pError == null){
         _trigSuccess?.fire();
@@ -119,7 +136,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   // 1.2 agregamos animacion
                   onInit: (artboard){
                     _controller = StateMachineController.fromArtboard(artboard, 
-                    'Login Machine');
+                    'Login Machine',
+                    // 5.2 agregamos el listener para el estado de la animación
+                    onStateChange: _onStateChange,
+                    );
         
                     // 1.3 Verificar que inció correctamente el controlador
                     if(_controller == null) return;
@@ -220,15 +240,39 @@ class _LoginScreenState extends State<LoginScreen> {
                     
                   ) 
                   ),
-                  SizedBox(height: 10),
-                  // 4.12 Boton de login
-                  SizedBox(
-                    width: size.width,
-                    child: const Text(
-                      'Forgot Password?', 
-                      textAlign: TextAlign.right, 
-                      style: TextStyle(decoration: TextDecoration.underline,)
+                  SizedBox(height: 12),
+                  // 4.12 Remember and Forgot Password
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: [
+                          Checkbox(
+                            value: rememberMe,
+                            onChanged: (value){
+                              setState(() {
+                                // 5.5 actualizamos el estado del checkbox
+                                rememberMe = value ?? false;
+                              });
+                            }
+                          ),
+                          const Text('Remember me')
+                        ],
                       ),
+
+                      TextButton(
+                        onPressed: (){},
+                        child: Text(
+                        'Forgot Password?', 
+                        style: TextStyle(
+                          color: Colors.black,
+                          decoration: TextDecoration.underline, 
+                          fontWeight: FontWeight.bold
+                        ),
+                      ),
+                    ),
+                    ]
                   ),
                   const SizedBox(height: 10),
                   // 4.13 Boton de login
@@ -239,7 +283,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(6)
                     ),
-                    onPressed: _onLogin,
+                    onPressed: isAnimating ? null : _onLogin, // 5.4 desactivamos el boton de login si isAnimating es true
                     child: Text(
                       'Login', 
                       style: TextStyle(
