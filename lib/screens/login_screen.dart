@@ -1,4 +1,7 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:login_bear_animation/screens/home_screen.dart';
+import 'package:login_bear_animation/screens/register_screen.dart';
 import 'package:rive/rive.dart';
 import 'dart:async'; // 3.1 importar el timer
 
@@ -38,6 +41,18 @@ class _LoginScreenState extends State<LoginScreen> {
     //Errores para mostrar en pantalla
     String? emailError;
     String? passError;
+    User? _currentUser;
+    StreamSubscription<User?>? _authSubscription;
+
+    void _onAuthStateChanged(User? user) {
+      if (!mounted) return;
+      setState(() {
+        _currentUser = user;
+      });
+      if (user != null) {
+        _trigSuccess?.fire();
+      }
+    }
 
     // 4.3 funcion para validar errores
     bool isValidEmail(String email){
@@ -61,7 +76,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     // 4.4 dar accion
-    void _onLogin(){
+    Future<void> _onLogin() async {
       // 4.5 quitar espacios en blanco
       final email = _emailCtrl.text.trim();
       final pass = _passCtrl.text;
@@ -86,11 +101,83 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() {
         isAnimating = true;
       });
-      // 4.9 activar trigger
-      if (eError == null && pError == null){
-        _trigSuccess?.fire();
-      } else {
+
+      if (eError != null || pError != null) {
         _trigFail?.fire();
+        return;
+      }
+
+      try {
+        await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: email,
+          password: pass,
+        );
+        if (!mounted) return;
+        _trigSuccess?.fire();
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          (_) => false,
+        );
+      } on FirebaseAuthException catch (error) {
+        if (!mounted) return;
+        setState(() {
+          passError = _authErrorMessage(error.code);
+        });
+        _trigFail?.fire();
+      }
+    }
+
+    Future<void> _onForgotPassword() async {
+      final email = _emailCtrl.text.trim();
+      if (!isValidEmail(email)) {
+        setState(() {
+          emailError = 'Enter your email first';
+        });
+        return;
+      }
+
+      try {
+        await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Password reset email sent. Check your inbox.'),
+          ),
+        );
+      } on FirebaseAuthException catch (error) {
+        if (!mounted) return;
+        setState(() {
+          emailError = _passwordResetErrorMessage(error.code);
+        });
+      }
+    }
+
+    String _passwordResetErrorMessage(String code) {
+      switch (code) {
+        case 'invalid-email':
+          return 'Invalid email';
+        case 'user-not-found':
+          return 'No account found for this email';
+        case 'network-request-failed':
+          return 'Check your internet connection';
+        default:
+          return 'Could not send the reset email';
+      }
+    }
+
+    String _authErrorMessage(String code) {
+      switch (code) {
+        case 'invalid-credential':
+        case 'user-not-found':
+        case 'wrong-password':
+          return 'Email or password is incorrect';
+        case 'too-many-requests':
+          return 'Too many attempts. Try again later';
+        case 'network-request-failed':
+          return 'Check your internet connection';
+        default:
+          return 'Could not sign in. Try again';
       }
     }
 
@@ -98,6 +185,9 @@ class _LoginScreenState extends State<LoginScreen> {
     @override
     void initState() {
       super.initState();
+      _authSubscription = FirebaseAuth.instance
+          .authStateChanges()
+          .listen(_onAuthStateChanged);
       _emailFocus.addListener(() {
 
         if (_emailFocus.hasFocus){
@@ -152,6 +242,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     _trigFail = _controller!.findSMI('trigFail');
                     // 3.5 vinculamos la variable de mirada
                     _numLook = _controller!.findSMI('numLook');
+                    if (_currentUser != null) {
+                      _trigSuccess?.fire();
+                    }
                   },),
                 ),
                 // sirve para separar espacio de alto
@@ -262,7 +355,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
 
                       TextButton(
-                        onPressed: (){},
+                        onPressed: _onForgotPassword,
                         child: Text(
                         'Forgot Password?', 
                         style: TextStyle(
@@ -301,7 +394,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       children: [
                         const Text("Don't have an account?"),
                         TextButton(
-                          onPressed: (){}, 
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const RegisterScreen(),
+                              ),
+                            );
+                          },
                           child: Text(
                             'Register', 
                             style: TextStyle(
@@ -329,6 +429,7 @@ class _LoginScreenState extends State<LoginScreen> {
     _emailFocus.dispose();
     _passwordFocus.dispose();
     _typingDebounce?.cancel(); // 3.8 cancelamos el timer si no es nulo
+    _authSubscription?.cancel();
     super.dispose();
   }
 }
